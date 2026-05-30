@@ -60,6 +60,8 @@
             treeView1 = new TreeView();
             flowLayoutPanel1 = new FlowLayoutPanel();
             groupBox1 = new GroupBox();
+            btnPrevTrack = new Button();
+            btnNextTrack = new Button();
             lblTime = new Label();
             lblMediaArtist = new Label();
             trackBarVolume = new TrackBar();
@@ -73,6 +75,7 @@
             picAlbumArt = new PictureBox();
             panelProperties = new GroupBox();
             panel1 = new Panel();
+            lblDate = new Label();
             lblCoordenadas = new Label();
             lblModifiedValue = new Label();
             lblTypeValue = new Label();
@@ -94,9 +97,11 @@
             statusStrip1 = new StatusStrip();
             btnViewCSV = new ToolStripDropDownButton();
             lblSelectionInfo = new ToolStripStatusLabel();
+            BtnGrabarAudio = new ToolStripDropDownButton();
+            btnDescargarDB = new ToolStripDropDownButton();
+            btnEnviarCorreo = new ToolStripDropDownButton();
+            toolStripStatusLabel1 = new ToolStripStatusLabel();
             timerMusic = new System.Windows.Forms.Timer(components);
-            lblStatusPlaylist = new ToolStripStatusLabel();
-            lblDate = new Label();
             toolStrip1.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
             groupBox1.SuspendLayout();
@@ -210,7 +215,6 @@
             newToolStripMenuItem.Name = "newToolStripMenuItem";
             newToolStripMenuItem.Size = new Size(134, 22);
             newToolStripMenuItem.Text = "New Folder";
-            newToolStripMenuItem.Click += newFolderToolStripMenuItem_Click;
             // 
             // toolStripButton6
             // 
@@ -328,6 +332,8 @@
             // 
             // groupBox1
             // 
+            groupBox1.Controls.Add(btnPrevTrack);
+            groupBox1.Controls.Add(btnNextTrack);
             groupBox1.Controls.Add(lblTime);
             groupBox1.Controls.Add(lblMediaArtist);
             groupBox1.Controls.Add(trackBarVolume);
@@ -346,6 +352,30 @@
             groupBox1.TabIndex = 3;
             groupBox1.TabStop = false;
             groupBox1.Text = "Dynamic Media";
+            // 
+            // btnPrevTrack
+            // 
+            btnPrevTrack.FlatStyle = FlatStyle.Flat;
+            btnPrevTrack.ImageAlign = ContentAlignment.MiddleLeft;
+            btnPrevTrack.Location = new Point(7, 90);
+            btnPrevTrack.Name = "btnPrevTrack";
+            btnPrevTrack.Size = new Size(17, 23);
+            btnPrevTrack.TabIndex = 12;
+            btnPrevTrack.Text = "⏮";
+            btnPrevTrack.UseVisualStyleBackColor = true;
+            btnPrevTrack.Click += btnPrevTrack_Click;
+            // 
+            // btnNextTrack
+            // 
+            btnNextTrack.FlatStyle = FlatStyle.Flat;
+            btnNextTrack.ImageAlign = ContentAlignment.MiddleLeft;
+            btnNextTrack.Location = new Point(177, 90);
+            btnNextTrack.Name = "btnNextTrack";
+            btnNextTrack.Size = new Size(17, 23);
+            btnNextTrack.TabIndex = 11;
+            btnNextTrack.Text = "⏭";
+            btnNextTrack.UseVisualStyleBackColor = true;
+            btnNextTrack.Click += btnNextTrack_Click;
             // 
             // lblTime
             // 
@@ -423,12 +453,11 @@
             // trackBarProgress
             // 
             trackBarProgress.AutoSize = false;
-            trackBarProgress.Location = new Point(29, 90);
+            trackBarProgress.Location = new Point(29, 87);
             trackBarProgress.Name = "trackBarProgress";
-            trackBarProgress.Size = new Size(145, 27);
+            trackBarProgress.Size = new Size(145, 15);
             trackBarProgress.TabIndex = 3;
             trackBarProgress.TickStyle = TickStyle.None;
-            trackBarProgress.Scroll += trackBarProgress_Scroll;
             trackBarProgress.MouseDown += trackBarProgress_MouseDown;
             trackBarProgress.MouseUp += trackBarProgress_MouseUp;
             // 
@@ -492,10 +521,19 @@
             panel1.Size = new Size(200, 188);
             panel1.TabIndex = 4;
             // 
+            // lblDate
+            // 
+            lblDate.AutoSize = true;
+            lblDate.Location = new Point(7, 48);
+            lblDate.Name = "lblDate";
+            lblDate.Size = new Size(36, 15);
+            lblDate.TabIndex = 10;
+            lblDate.Text = "Date:";
+            // 
             // lblCoordenadas
             // 
             lblCoordenadas.AutoSize = true;
-            lblCoordenadas.Location = new Point(121, 85);
+            lblCoordenadas.Location = new Point(96, 85);
             lblCoordenadas.Name = "lblCoordenadas";
             lblCoordenadas.Size = new Size(13, 15);
             lblCoordenadas.TabIndex = 9;
@@ -504,7 +542,7 @@
             // lblModifiedValue
             // 
             lblModifiedValue.AutoSize = true;
-            lblModifiedValue.Location = new Point(121, 48);
+            lblModifiedValue.Location = new Point(67, 48);
             lblModifiedValue.Name = "lblModifiedValue";
             lblModifiedValue.Size = new Size(13, 15);
             lblModifiedValue.TabIndex = 7;
@@ -530,6 +568,7 @@
             webMapa.Size = new Size(108, 85);
             webMapa.TabIndex = 5;
             webMapa.ZoomFactor = 1D;
+            webMapa.Click += webMapa_Click;
             // 
             // label8
             // 
@@ -647,7 +686,7 @@
             // 
             // statusStrip1
             // 
-            statusStrip1.Items.AddRange(new ToolStripItem[] { btnViewCSV, lblSelectionInfo, lblStatusPlaylist });
+            statusStrip1.Items.AddRange(new ToolStripItem[] { btnViewCSV, lblSelectionInfo, BtnGrabarAudio, btnDescargarDB, btnEnviarCorreo, toolStripStatusLabel1 });
             statusStrip1.Location = new Point(0, 428);
             statusStrip1.Name = "statusStrip1";
             statusStrip1.Size = new Size(600, 22);
@@ -667,28 +706,42 @@
             // lblSelectionInfo
             // 
             lblSelectionInfo.Name = "lblSelectionInfo";
-            lblSelectionInfo.Size = new Size(484, 17);
-            lblSelectionInfo.Spring = true;
+            lblSelectionInfo.Size = new Size(32, 17);
+            lblSelectionInfo.Text = "-----";
+            // 
+            // BtnGrabarAudio
+            // 
+            BtnGrabarAudio.Image = Properties.Resources.play_button;
+            BtnGrabarAudio.Name = "BtnGrabarAudio";
+            BtnGrabarAudio.Size = new Size(29, 20);
+            BtnGrabarAudio.Click += btnGrabarAudio_Click;
+            // 
+            // btnDescargarDB
+            // 
+            btnDescargarDB.Image = Properties.Resources.download;
+            btnDescargarDB.Name = "btnDescargarDB";
+            btnDescargarDB.Size = new Size(29, 20);
+            btnDescargarDB.Click += btnDescargarDB_Click;
+            // 
+            // btnEnviarCorreo
+            // 
+            btnEnviarCorreo.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            btnEnviarCorreo.Image = Properties.Resources.gmail;
+            btnEnviarCorreo.ImageTransparentColor = Color.Magenta;
+            btnEnviarCorreo.Name = "btnEnviarCorreo";
+            btnEnviarCorreo.Size = new Size(29, 20);
+            btnEnviarCorreo.Click += btnEnviarCorreo_Click;
+            // 
+            // toolStripStatusLabel1
+            // 
+            toolStripStatusLabel1.Name = "toolStripStatusLabel1";
+            toolStripStatusLabel1.Size = new Size(118, 17);
+            toolStripStatusLabel1.Text = "toolStripStatusLabel1";
             // 
             // timerMusic
             // 
             timerMusic.Interval = 1000;
             timerMusic.Tick += timerMusic_Tick;
-            // 
-            // lblStatusPlaylist
-            // 
-            lblStatusPlaylist.Name = "lblStatusPlaylist";
-            lblStatusPlaylist.Size = new Size(32, 17);
-            lblStatusPlaylist.Text = "-----";
-            // 
-            // lblDate
-            // 
-            lblDate.AutoSize = true;
-            lblDate.Location = new Point(7, 48);
-            lblDate.Name = "lblDate";
-            lblDate.Size = new Size(36, 15);
-            lblDate.TabIndex = 10;
-            lblDate.Text = "Date:";
             // 
             // Form1
             // 
@@ -777,12 +830,17 @@
         private ColumnHeader chStatus;
         private StatusStrip statusStrip1;
         private ToolStripDropDownButton btnViewCSV;
-        private ToolStripStatusLabel lblSelectionInfo;
         private Label lblMediaArtist;
         private Label lblTime;
         private System.Windows.Forms.Timer timerMusic;
         private Label lblModifiedValue;
         private Label lblDate;
-        private ToolStripStatusLabel lblStatusPlaylist;
+        private ToolStripStatusLabel lblSelectionInfo;
+        private ToolStripDropDownButton BtnGrabarAudio;
+        private Button btnPrevTrack;
+        private Button btnNextTrack;
+        private ToolStripDropDownButton btnDescargarDB;
+        private ToolStripDropDownButton btnEnviarCorreo;
+        private ToolStripStatusLabel toolStripStatusLabel1;
     }
 }
