@@ -14,36 +14,55 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using WMPLib;
-using System.Runtime.InteropServices;
+// ¡NUEVAS LIBRERÍAS PARA LEER EXCEL!
+using ExcelDataReader;
+
 
 namespace Explorerpr
 {
     public partial class Form1 : Form
     {
+        // ==========================================
+        // LIBRERÍAS Y VARIABLES PARA LA CÁMARA WEB Y AUDIO NATIVO
+        // ==========================================
+        [System.Runtime.InteropServices.DllImport("avicap32.dll", EntryPoint = "capCreateCaptureWindowA")]
+        private static extern IntPtr capCreateCaptureWindowA(string lpszWindowName, int dwStyle, int x, int y, int nWidth, int nHeight, IntPtr hwndParent, int nID);
+
+        [System.Runtime.InteropServices.DllImport("user32", EntryPoint = "SendMessage")]
+        private static extern int SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32", EntryPoint = "SendMessage")]
+        private static extern int SendMessageString(IntPtr hWnd, uint Msg, int wParam, string lParam);
+
+        [System.Runtime.InteropServices.DllImport("winmm.dll")]
+        private static extern long mciSendString(string command, StringBuilder returnString, int returnLength, IntPtr hwndCallback);
+
+        private const int WS_CHILD = 0x40000000;
+        private const int WS_VISIBLE = 0x10000000;
+        private const int WM_CAP_START = 0x0400;
+        private const int WM_CAP_DRIVER_CONNECT = WM_CAP_START + 10;
+        private const int WM_CAP_DRIVER_DISCONNECT = WM_CAP_START + 11;
+        private const int WM_CAP_EDIT_COPY = WM_CAP_START + 30;
+        private const int WM_CAP_SET_PREVIEW = WM_CAP_START + 50;
+        private const int WM_CAP_SET_PREVIEWRATE = WM_CAP_START + 52;
+        private const int WM_CAP_SET_SCALE = WM_CAP_START + 53;
+        private const int WM_CAP_FILE_SET_CAPTURE_FILEA = WM_CAP_START + 20;
+        private const int WM_CAP_SEQUENCE = WM_CAP_START + 62;
+
         private Stack<string> backStack = new Stack<string>();
         private Stack<string> forwardStack = new Stack<string>();
-        private string currentPath = @"C:\Users\liz\Media";
+        private string currentPath = @"C:\Users\liz\";
         private double currentLat;
         private double currentLon;
         string connectionString = @"Server=LIZETH; Database=ExplorerDB; Integrated Security=True; TrustServerCertificate=True;";
 
-        WMPLib.WindowsMediaPlayer player = new WMPLib.WindowsMediaPlayer();
         bool isDragging = false;
-
         private List<string> playlist = new List<string>();
         private int indicePlaylist = 0;
-        private bool estaGrabandoAudio = false;
-
-        // Librería nativa de Windows para grabar audio del micrófono
-        [DllImport("winmm.dll")]
-        private static extern long mciSendString(string command, StringBuilder returnString, int returnLength, IntPtr hwndCallback);
 
         public Form1()
         {
             InitializeComponent();
-
-            player.PlayStateChange += Player_PlayStateChange;
         }
 
         private void Form1_Load_1(object sender, EventArgs e)
@@ -93,34 +112,25 @@ namespace Explorerpr
             if (e.KeyCode == Keys.Enter)
             {
                 string term = txtSearch.Text.ToLower().Trim();
-
-                // Si el usuario escribe una extensión (empieza con punto)
                 if (term.StartsWith("."))
                 {
                     try
                     {
                         listView1.Clear();
                         listView1.View = View.Details;
-                        listView1.Columns.Add("Resultados de Búsqueda", 400);
-                        listView1.Columns.Add("Tipo", 100);
-
-                        DirectoryInfo di = new DirectoryInfo(currentPath);
-
-                        // Busca en la carpeta actual y en todas las carpetas de adentro (AllDirectories)
-                        foreach (var file in di.GetFiles("*" + term, SearchOption.AllDirectories))
-                        {
-                            ListViewItem item = new ListViewItem(file.FullName, GetIconIndex(file.Extension));
-                            item.SubItems.Add(file.Extension.ToUpper());
-                            listView1.Items.Add(item);
-                        }
-
-                        MessageBox.Show($"Búsqueda completada para la extensión: {term}", "Búsqueda");
+                        listView1.Columns.Add("Archivo Encontrado", 400);
+                        listView1.Columns.Add("Tamaño", 100);
+                        listView1.Columns.Add("Tipo", 80);
+                        BuscarArchivosSeguro(new DirectoryInfo(currentPath), term);
+                        if (listView1.Items.Count == 0)
+                            MessageBox.Show($"No se encontraron archivos con extensión {term}");
+                        else
+                            MessageBox.Show($"Se encontraron {listView1.Items.Count} archivos con extensión {term}");
                     }
-                    catch (Exception ex) { MessageBox.Show("Error en la búsqueda: " + ex.Message); }
+                    catch (Exception ex) { MessageBox.Show("Error general: " + ex.Message); }
                 }
                 else
                 {
-                    // Búsqueda normal por nombre que ya tenías
                     foreach (ListViewItem item in listView1.Items)
                     {
                         if (item.Text.ToLower().Contains(term))
@@ -134,9 +144,26 @@ namespace Explorerpr
             }
         }
 
-        // ==========================================
-        // 1. CARGA DE METADATOS Y CORREO ELÉCTRONICO
-        // ==========================================
+        private void BuscarArchivosSeguro(DirectoryInfo carpeta, string extension)
+        {
+            try
+            {
+                foreach (var file in carpeta.GetFiles("*" + extension))
+                {
+                    ListViewItem item = new ListViewItem(file.FullName);
+                    item.SubItems.Add((file.Length / 1024).ToString() + " KB");
+                    item.SubItems.Add(file.Extension.ToUpper().Replace(".", ""));
+                    listView1.Items.Add(item);
+                }
+                foreach (var subDir in carpeta.GetDirectories())
+                {
+                    try { BuscarArchivosSeguro(subDir, extension); }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
         private void btnMediaDetails_Click(object sender, EventArgs e)
         {
             if (listView1.SelectedItems.Count > 0)
@@ -153,26 +180,23 @@ namespace Explorerpr
 
                 try
                 {
-                    // Si es multimedia intentamos sacar más datos
                     var fileTag = TagLib.File.Create(fullPath);
                     info += $"🎵 Detalles Multimedia:\n" +
                             $"Título: {fileTag.Tag.Title}\n" +
                             $"Álbum: {fileTag.Tag.Album}\n" +
                             $"Duración: {fileTag.Properties.Duration:mm\\:ss}";
                 }
-                catch { /* No es archivo multimedia soportado por TagLib */ }
+                catch { }
 
                 MessageBox.Show(info, "Metadatos Completos", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
-      
         private void btnEnviarCorreo_Click(object sender, EventArgs e)
         {
             if (listView1.SelectedItems.Count == 0) { MessageBox.Show("Selecciona un archivo primero."); return; }
 
             string fullPath = Path.Combine(currentPath, listView1.SelectedItems[0].Text);
-
             string destino = Microsoft.VisualBasic.Interaction.InputBox("Ingresa el correo del destinatario:", "Enviar Archivo", "");
 
             if (string.IsNullOrEmpty(destino) || !destino.Contains("@") || !destino.Contains("."))
@@ -192,7 +216,7 @@ namespace Explorerpr
                 mail.Attachments.Add(new Attachment(fullPath));
 
                 SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587);
-                smtp.Credentials = new NetworkCredential("lizethcarrizales@gmail.com", "shjcpwvfujwszenb");
+                smtp.Credentials = new NetworkCredential("lizethcarrizales42@gmail.com", "shjcpwvfujwszenb");
                 smtp.EnableSsl = true;
 
                 smtp.Send(mail);
@@ -236,7 +260,6 @@ namespace Explorerpr
                 {
                     try
                     {
-                        // Se crea vacío dependiendo del formato
                         string contenidoInicial = "";
                         if (sfd.FileName.EndsWith(".json")) contenidoInicial = "{\n\n}";
                         else if (sfd.FileName.EndsWith(".xml")) contenidoInicial = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>\n</root>";
@@ -253,7 +276,32 @@ namespace Explorerpr
         private void AbrirEditorDeArchivos(string ruta)
         {
             Form editorForm = new Form { Text = "Editor Avanzado - " + Path.GetFileName(ruta), Size = new Size(700, 500) };
-            TextBox txtContenido = new TextBox { Multiline = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Both, Text = File.ReadAllText(ruta), Font = new Font("Consolas", 11) };
+
+            // LOGICA NUEVA: Decifrar texto de Excel si es necesario
+            string textoParaMostrar = "";
+            if (ruta.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || ruta.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    using (var stream = File.Open(ruta, FileMode.Open, FileAccess.Read))
+                    using (var reader = ExcelReaderFactory.CreateReader(stream))
+                    {
+                        var tabla = reader.AsDataSet().Tables[0];
+                        foreach (DataRow row in tabla.Rows)
+                        {
+                            textoParaMostrar += string.Join(" | ", row.ItemArray) + Environment.NewLine;
+                        }
+                    }
+                }
+                catch (Exception ex) { textoParaMostrar = "Error al leer Excel: " + ex.Message; }
+            }
+            else
+            {
+                textoParaMostrar = File.ReadAllText(ruta);
+            }
+
+            TextBox txtContenido = new TextBox { Multiline = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Both, Text = textoParaMostrar, Font = new Font("Consolas", 11) };
 
             Panel panelAbajo = new Panel { Dock = DockStyle.Bottom, Height = 40 };
             Button btnGuardar = new Button { Text = "Guardar Cambios", Dock = DockStyle.Right, Width = 150 };
@@ -261,6 +309,12 @@ namespace Explorerpr
 
             btnGuardar.Click += (s, ev) =>
             {
+                // Evitamos dañar los archivos de Excel si se intentan guardar como texto plano directo
+                if (ruta.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) || ruta.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show("No se pueden sobrescribir archivos Excel nativos desde aquí. Usa 'Guardar Como...' para exportarlo como CSV o Texto.", "Atención", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 File.WriteAllText(ruta, txtContenido.Text);
                 MessageBox.Show("Cambios guardados en el archivo original.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
@@ -276,7 +330,7 @@ namespace Explorerpr
                     {
                         File.WriteAllText(sfd.FileName, txtContenido.Text);
                         MessageBox.Show("Guardado exitosamente como " + Path.GetExtension(sfd.FileName));
-                        LoadFilesAndDirectories(currentPath); // Actualizamos explorador
+                        LoadFilesAndDirectories(currentPath);
                     }
                 }
             };
@@ -294,12 +348,42 @@ namespace Explorerpr
             {
                 listView1.Clear();
                 listView1.View = View.Details;
-
                 string ext = Path.GetExtension(ruta).ToLower();
-                string contenido = File.ReadAllText(ruta);
 
-                if (ext == ".csv" || ext == ".txt")
+                // LOGICA NUEVA: Descifrar Excel para la tabla
+                if (ext == ".xlsx" || ext == ".xls")
                 {
+                    System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                    using (var stream = File.Open(ruta, FileMode.Open, FileAccess.Read))
+                    {
+                        using (var reader = ExcelReaderFactory.CreateReader(stream))
+                        {
+                            var result = reader.AsDataSet();
+                            var tablaExcel = result.Tables[0]; // Tomamos la Hoja 1
+
+                            // Creamos las columnas en el ListView
+                            for (int i = 0; i < tablaExcel.Columns.Count; i++)
+                            {
+                                listView1.Columns.Add("Columna " + (i + 1), 120);
+                            }
+
+                            // Llenamos los datos fila por fila
+                            for (int r = 0; r < tablaExcel.Rows.Count; r++)
+                            {
+                                var fila = tablaExcel.Rows[r];
+                                ListViewItem item = new ListViewItem(fila[0]?.ToString() ?? "");
+                                for (int c = 1; c < tablaExcel.Columns.Count; c++)
+                                {
+                                    item.SubItems.Add(fila[c]?.ToString() ?? "");
+                                }
+                                listView1.Items.Add(item);
+                            }
+                        }
+                    }
+                }
+                else if (ext == ".csv" || ext == ".txt")
+                {
+                    string contenido = File.ReadAllText(ruta);
                     string[] lineas = contenido.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
                     if (lineas.Length > 0)
                     {
@@ -317,8 +401,9 @@ namespace Explorerpr
                         }
                     }
                 }
-                else if (ext == ".json" || ext == ".xml") // ¡Agregamos soporte para XML!
+                else if (ext == ".json" || ext == ".xml")
                 {
+                    string contenido = File.ReadAllText(ruta);
                     listView1.Columns.Add("Propiedad Original", 300);
                     listView1.Columns.Add("Contenido", 400);
                     ListViewItem item = new ListViewItem("Código Crudo");
@@ -330,6 +415,7 @@ namespace Explorerpr
             }
             catch (Exception ex) { MessageBox.Show("Error al cargar tabla: " + ex.Message); }
         }
+
         private void listView1_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             if (listView1.SelectedItems.Count > 0)
@@ -348,9 +434,9 @@ namespace Explorerpr
                 {
                     if (File.Exists(fullPath)) { new FrmImageEditor(fullPath).Show(); }
                 }
-                else if (extension == ".txt" || extension == ".csv" || extension == ".json" || extension == ".xml")
+                // LOGICA NUEVA: Agregamos Excel a la condición
+                else if (extension == ".txt" || extension == ".csv" || extension == ".json" || extension == ".xml" || extension == ".xlsx" || extension == ".xls")
                 {
-                    // PREGUNTAMOS CÓMO LO QUIERE ABRIR
                     DialogResult res = MessageBox.Show("¿Deseas editar el archivo en el Editor de Texto (SÍ) o visualizarlo en la Tabla/Lista (NO)?", "Opciones de Apertura", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                     if (res == DialogResult.Yes) AbrirEditorDeArchivos(fullPath);
                     else if (res == DialogResult.No) CargarDatosEnTabla(fullPath);
@@ -363,121 +449,8 @@ namespace Explorerpr
             }
         }
 
-        private void btnPlay_Click(object sender, EventArgs e) { player.controls.play(); timerMusic.Start(); }
-        private void btnPause_Click(object sender, EventArgs e) { player.controls.pause(); }
-        private void btnStop_Click(object sender, EventArgs e) { player.controls.stop(); timerMusic.Stop(); trackBarProgress.Value = 0; }
-        private void trackBarVolume_Scroll(object sender, EventArgs e) { player.settings.volume = trackBarVolume.Value; }
-
-        private void timerMusic_Tick(object sender, EventArgs e)
-        {
-            if (player.playState == WMPLib.WMPPlayState.wmppsPlaying && !isDragging)
-            {
-                trackBarProgress.Maximum = (int)player.currentMedia.duration;
-                trackBarProgress.Value = (int)player.controls.currentPosition;
-                lblTime.Text = player.controls.currentPositionString;
-            }
-        }
-
-        private void trackBarProgress_MouseDown(object sender, MouseEventArgs e) { isDragging = true; }
-        private void trackBarProgress_MouseUp(object sender, MouseEventArgs e) { isDragging = false; player.controls.currentPosition = trackBarProgress.Value; }
-
-        private void Player_PlayStateChange(int NewState)
-        {
-            if (NewState == (int)WMPLib.WMPPlayState.wmppsMediaEnded)
-            {
-                btnNextTrack_Click(null, null);
-            }
-        }
-
-        private void btnCargarPlaylist_Click(object sender, EventArgs e)
-        {
-            playlist.Clear();
-            foreach (ListViewItem item in listView1.Items)
-            {
-                if (item.Text.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
-                {
-                    playlist.Add(Path.Combine(currentPath, item.Text));
-                    if (playlist.Count >= 5) break; // Límite de 5 canciones
-                }
-            }
-
-            if (playlist.Count > 0)
-            {
-                indicePlaylist = 0;
-                ReproducirMedia(playlist[indicePlaylist]);
-                MessageBox.Show($"Se cargaron {playlist.Count} canciones en la Playlist.");
-            }
-            else { MessageBox.Show("No hay archivos mp3 en esta carpeta para la playlist."); }
-        }
-
-        private void btnNextTrack_Click(object sender, EventArgs e)
-        {
-            if (playlist.Count > 0)
-            {
-                indicePlaylist++;
-                if (indicePlaylist >= playlist.Count) indicePlaylist = 0; // Vuelve al inicio
-                ReproducirMedia(playlist[indicePlaylist]);
-            }
-        }
-
-        private void btnPrevTrack_Click(object sender, EventArgs e)
-        {
-            if (playlist.Count > 0)
-            {
-                indicePlaylist--;
-                if (indicePlaylist < 0) indicePlaylist = playlist.Count - 1; // Va al final
-                ReproducirMedia(playlist[indicePlaylist]);
-            }
-        }
-
-        private async void ReproducirMedia(string rutaArchivo)
-        {
-            player.URL = rutaArchivo;
-            lblMediaTitle.Text = Path.GetFileName(rutaArchivo);
-
-            try
-            {
-                string nombreLimpio = Path.GetFileNameWithoutExtension(rutaArchivo);
-                string urlCaratula = await BuscarCaratulaOnline(nombreLimpio);
-                if (!string.IsNullOrEmpty(urlCaratula))
-                    picAlbumArt.LoadAsync(urlCaratula);
-                else
-                    picAlbumArt.Image = Properties.Resources.sound;
-            }
-            catch { }
-
-            player.controls.play();
-            timerMusic.Start();
-        }
-
-        private void btnGrabarAudio_Click(object sender, EventArgs e)
-        {
-            if (!estaGrabandoAudio)
-            {
-                mciSendString("open new Type waveaudio Alias recsound", null, 0, IntPtr.Zero);
-                mciSendString("record recsound", null, 0, IntPtr.Zero);
-                estaGrabandoAudio = true;
-                MessageBox.Show("🔴 GRABANDO... Habla por el micrófono de tu laptop. \nPresiona este mismo botón para DETENER y guardar el archivo.", "Grabadora", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-            else
-            {
-                mciSendString("stop recsound", null, 0, IntPtr.Zero);
-                using (SaveFileDialog sfd = new SaveFileDialog { Filter = "Archivo de Audio WAV|*.wav", Title = "Guardar Grabación" })
-                {
-                    if (sfd.ShowDialog() == DialogResult.OK)
-                    {
-                        mciSendString($"save recsound \"{sfd.FileName}\"", null, 0, IntPtr.Zero);
-                        MessageBox.Show("Grabación guardada con éxito.", "Guardado");
-                        LoadFilesAndDirectories(currentPath);
-                    }
-                }
-                mciSendString("close recsound", null, 0, IntPtr.Zero);
-                estaGrabandoAudio = false;
-            }
-        }
-
         // ==========================================
-        // 5. SELECCIÓN, CARGA Y API DE IMÁGENES
+        // 5. SELECCIÓN, CARGA Y NUEVO REPRODUCTOR (SIN WMP)
         // ==========================================
         private async void listView1_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -505,19 +478,12 @@ namespace Explorerpr
 
                 if (extension == "mp3")
                 {
-                    player.URL = fullPath;
-                    lblMediaTitle.Text = sel.Text;
-                    string nombreLimpio = sel.Text.Replace(".mp3", "");
-                    string urlCaratula = await BuscarCaratulaOnline(nombreLimpio);
-
-                    if (!string.IsNullOrEmpty(urlCaratula)) picAlbumArt.LoadAsync(urlCaratula);
-
-                    player.controls.play();
-                    timerMusic.Start();
+                    ReproducirMedia(fullPath);
                 }
                 else if (extension == "jpg" || extension == "jpeg" || extension == "png")
                 {
-                    player.controls.stop();
+                    // Apagar música nativa
+                    mciSendString("close ReproductorPropio", null, 0, IntPtr.Zero);
                     timerMusic.Stop();
                     picAlbumArt.Image = Image.FromFile(fullPath);
                     CargarMetadatosFoto(fullPath);
@@ -525,9 +491,183 @@ namespace Explorerpr
                 }
                 else
                 {
-                    player.controls.stop();
+                    mciSendString("close ReproductorPropio", null, 0, IntPtr.Zero);
                     timerMusic.Stop();
                 }
+            }
+        }
+
+        private async void ReproducirMedia(string rutaArchivo)
+        {
+            // Cerramos cualquier archivo de audio previo
+            mciSendString("close ReproductorPropio", null, 0, IntPtr.Zero);
+
+            // Abrimos el nuevo MP3 y le damos play
+            mciSendString($"open \"{rutaArchivo}\" type mpegvideo alias ReproductorPropio", null, 0, IntPtr.Zero);
+            mciSendString("play ReproductorPropio", null, 0, IntPtr.Zero);
+
+            lblMediaTitle.Text = Path.GetFileName(rutaArchivo);
+
+            try
+            {
+                string nombreLimpio = Path.GetFileNameWithoutExtension(rutaArchivo);
+                string urlCaratula = await BuscarCaratulaOnline(nombreLimpio);
+                if (!string.IsNullOrEmpty(urlCaratula))
+                    picAlbumArt.LoadAsync(urlCaratula);
+                else
+                    picAlbumArt.Image = Properties.Resources.sound;
+            }
+            catch { }
+
+            timerMusic.Start();
+        }
+
+        private void btnPlay_Click(object sender, EventArgs e)
+        {
+            mciSendString("play ReproductorPropio", null, 0, IntPtr.Zero);
+            timerMusic.Start();
+        }
+
+        private void btnPause_Click(object sender, EventArgs e)
+        {
+            mciSendString("pause ReproductorPropio", null, 0, IntPtr.Zero);
+        }
+
+        private void btnStop_Click(object sender, EventArgs e)
+        {
+            mciSendString("close ReproductorPropio", null, 0, IntPtr.Zero);
+            timerMusic.Stop();
+            trackBarProgress.Value = 0;
+        }
+
+        private void trackBarVolume_Scroll(object sender, EventArgs e)
+        {
+            int volumenReal = trackBarVolume.Value * 10;
+            mciSendString($"setaudio ReproductorPropio volume to {volumenReal}", null, 0, IntPtr.Zero);
+        }
+
+        private void timerMusic_Tick(object sender, EventArgs e)
+        {
+            if (!isDragging)
+            {
+                StringBuilder sbLongitud = new StringBuilder(128);
+                mciSendString("status ReproductorPropio length", sbLongitud, 128, IntPtr.Zero);
+
+                StringBuilder sbPosicion = new StringBuilder(128);
+                mciSendString("status ReproductorPropio position", sbPosicion, 128, IntPtr.Zero);
+
+                int longitud = 0, posicion = 0;
+                int.TryParse(sbLongitud.ToString(), out longitud);
+                int.TryParse(sbPosicion.ToString(), out posicion);
+
+                if (longitud > 0)
+                {
+                    trackBarProgress.Maximum = longitud;
+                    if (posicion <= longitud) trackBarProgress.Value = posicion;
+
+                    TimeSpan t = TimeSpan.FromMilliseconds(posicion);
+                    lblTime.Text = string.Format("{0:D2}:{1:D2}", t.Minutes, t.Seconds);
+
+                    // LOGICA DE PLAYLIST: Si la canción terminó (posicion >= longitud), avanza
+                    if (posicion >= longitud && longitud > 0)
+                    {
+                        timerMusic.Stop();
+                        btnNextTrack_Click(null, null);
+                    }
+                }
+            }
+        }
+
+        private void trackBarProgress_MouseDown(object sender, MouseEventArgs e) { isDragging = true; }
+        private void trackBarProgress_MouseUp(object sender, MouseEventArgs e)
+        {
+            isDragging = false;
+            mciSendString($"seek ReproductorPropio to {trackBarProgress.Value}", null, 0, IntPtr.Zero);
+            mciSendString("play ReproductorPropio", null, 0, IntPtr.Zero);
+        }
+
+        // ==========================================
+        // GRABADORA DE VIDEO (REEMPLAZÓ A LA DE VOZ)
+        // ==========================================
+        private void btnGrabarAudio_Click(object sender, EventArgs e)
+        {
+            Form frmVideo = new Form { Text = "🔴 Grabando Video...", Size = new Size(640, 520), StartPosition = FormStartPosition.CenterParent };
+            PictureBox picVideo = new PictureBox { Dock = DockStyle.Fill };
+            Button btnDetener = new Button { Text = "⏹ DETENER Y GUARDAR VIDEO", Dock = DockStyle.Bottom, Height = 50, BackColor = Color.Red, ForeColor = Color.White, Font = new Font("Arial", 12, FontStyle.Bold) };
+
+            frmVideo.Controls.Add(picVideo);
+            frmVideo.Controls.Add(btnDetener);
+
+            IntPtr hWndC = capCreateCaptureWindowA("Video", WS_CHILD | WS_VISIBLE, 0, 0, 640, 480, picVideo.Handle, 0);
+
+            if (SendMessage(hWndC, WM_CAP_DRIVER_CONNECT, 0, 0) != 0)
+            {
+                SendMessage(hWndC, WM_CAP_SET_SCALE, 1, 0);
+                SendMessage(hWndC, WM_CAP_SET_PREVIEWRATE, 66, 0);
+                SendMessage(hWndC, WM_CAP_SET_PREVIEW, 1, 0);
+
+                string rutaPictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                string rutaVideo = System.IO.Path.Combine(rutaPictures, "Video_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".avi");
+
+                SendMessageString(hWndC, WM_CAP_FILE_SET_CAPTURE_FILEA, 0, rutaVideo);
+                SendMessage(hWndC, WM_CAP_SEQUENCE, 0, 0);
+
+                btnDetener.Click += (s, ev) => { frmVideo.Close(); };
+
+                frmVideo.FormClosing += (s, ev) =>
+                {
+                    SendMessage(hWndC, WM_CAP_DRIVER_DISCONNECT, 0, 0);
+                    MessageBox.Show("¡Video guardado con éxito en tu carpeta de Imágenes!\n\nRuta: " + rutaVideo, "Video Guardado", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (currentPath == rutaPictures) { LoadFilesAndDirectories(currentPath); }
+                };
+
+                frmVideo.ShowDialog();
+            }
+            else
+            {
+                MessageBox.Show("No se detectó cámara web.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Funciones de Playlist
+        private void btnCargarPlaylist_Click(object sender, EventArgs e)
+        {
+            playlist.Clear();
+            foreach (ListViewItem item in listView1.Items)
+            {
+                if (item.Text.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+                {
+                    playlist.Add(Path.Combine(currentPath, item.Text));
+                    if (playlist.Count >= 5) break;
+                }
+            }
+
+            if (playlist.Count > 0)
+            {
+                indicePlaylist = 0;
+                ReproducirMedia(playlist[indicePlaylist]);
+                MessageBox.Show($"Se cargaron {playlist.Count} canciones en la Playlist.");
+            }
+            else { MessageBox.Show("No hay archivos mp3 en esta carpeta para la playlist."); }
+        }
+
+        private void btnNextTrack_Click(object sender, EventArgs e)
+        {
+            if (playlist.Count > 0)
+            {
+                indicePlaylist++;
+                if (indicePlaylist >= playlist.Count) indicePlaylist = 0;
+                ReproducirMedia(playlist[indicePlaylist]);
+            }
+        }
+
+        private void btnPrevTrack_Click(object sender, EventArgs e)
+        {
+            if (playlist.Count > 0)
+            {
+                indicePlaylist--;
+                if (indicePlaylist < 0) indicePlaylist = playlist.Count - 1;
+                ReproducirMedia(playlist[indicePlaylist]);
             }
         }
 
@@ -552,7 +692,7 @@ namespace Explorerpr
         }
 
         // ==========================================
-        // 6. SQL SERVER - SUBIR Y DESCARGAR ARCHIVOS
+        // SQL Y OTRAS FUNCIONES SIN CAMBIOS
         // ==========================================
         private void btnSqlUp_Click(object sender, EventArgs e)
         {
@@ -580,7 +720,7 @@ namespace Explorerpr
                         cmd.Parameters.AddWithValue("@fecha", DateTime.Parse(sel.SubItems[3].Text));
 
                         cmd.ExecuteNonQuery();
-                        MessageBox.Show("¡Archivo subido a SQL Server exitosamente!");
+                        MessageBox.Show("¡Archivo subido exitosamente!");
                     }
                     catch (Exception ex) { MessageBox.Show("Error en SQL Server: " + ex.Message); }
                 }
@@ -604,7 +744,7 @@ namespace Explorerpr
 
                             using (StreamWriter sw = new StreamWriter(sfd.FileName))
                             {
-                                sw.WriteLine("ID, Nombre, Extension, Tamano, Ruta"); // Encabezados
+                                sw.WriteLine("ID, Nombre, Extension, Tamano, Ruta");
                                 while (reader.Read())
                                 {
                                     sw.WriteLine($"{reader["ID"]}, {reader["NombreArchivo"]}, {reader["Extension"]}, {reader["TamanoKB"]}, {reader["RutaLocal"]}");
@@ -618,9 +758,6 @@ namespace Explorerpr
             }
         }
 
-        // ==========================================
-        // 7. FUNCIONES DEL NAVEGADOR
-        // ==========================================
         private void Navegar(string path)
         {
             try
@@ -631,7 +768,6 @@ namespace Explorerpr
                 currentPath = path;
                 cmbPath.Text = path;
 
-                // ¡ESTO ARREGLA LA VISTA RARA! Reiniciamos las columnas del explorador
                 listView1.Clear();
                 listView1.View = View.Details;
                 listView1.Columns.Add("Name", 200);
@@ -688,7 +824,7 @@ namespace Explorerpr
                 case "Pictures": nuevaRuta = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures); break;
                 case "Video":
                 case "Videos": nuevaRuta = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos); break;
-                case "Playlist": // ¡NUEVA LÓGICA PARA PLAYLIST!
+                case "Playlist":
                     CargarPlaylistAutomatica();
                     return;
                 default: return;
@@ -712,7 +848,6 @@ namespace Explorerpr
                 listView1.Clear();
                 listView1.View = View.Details;
                 listView1.Columns.Add("Canciones de Mi Playlist", 300);
-                // Buscamos 5 canciones
                 foreach (var file in di.GetFiles("*.mp3"))
                 {
                     playlist.Add(file.FullName);
@@ -783,20 +918,55 @@ namespace Explorerpr
             webMapa.NavigateToString(html);
         }
 
-        // Resto de eventos vacíos del diseñador para compatibilidad
+        private void AbrirCamaraWeb()
+        {
+            Form frmCamara = new Form { Text = "Cámara Web - Captura", Size = new Size(640, 520), StartPosition = FormStartPosition.CenterParent };
+            PictureBox picVideo = new PictureBox { Dock = DockStyle.Fill };
+            Button btnTomarFoto = new Button { Text = "📸 Tomar Foto y Guardar", Dock = DockStyle.Bottom, Height = 50, Font = new Font("Arial", 12, FontStyle.Bold) };
+
+            frmCamara.Controls.Add(picVideo);
+            frmCamara.Controls.Add(btnTomarFoto);
+
+            IntPtr hWndC = capCreateCaptureWindowA("Video", WS_CHILD | WS_VISIBLE, 0, 0, 640, 480, picVideo.Handle, 0);
+
+            if (SendMessage(hWndC, WM_CAP_DRIVER_CONNECT, 0, 0) != 0)
+            {
+                SendMessage(hWndC, WM_CAP_SET_SCALE, 1, 0);
+                SendMessage(hWndC, WM_CAP_SET_PREVIEWRATE, 66, 0);
+                SendMessage(hWndC, WM_CAP_SET_PREVIEW, 1, 0);
+
+                btnTomarFoto.Click += (s, ev) =>
+                {
+                    SendMessage(hWndC, WM_CAP_EDIT_COPY, 0, 0);
+
+                    if (Clipboard.ContainsImage())
+                    {
+                        Image foto = Clipboard.GetImage();
+                        string rutaPictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                        string nombreArchivo = "Captura_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".jpg";
+                        string rutaFinal = System.IO.Path.Combine(rutaPictures, nombreArchivo);
+
+                        foto.Save(rutaFinal, System.Drawing.Imaging.ImageFormat.Jpeg);
+                        MessageBox.Show("¡Foto capturada y guardada en tu carpeta de Imágenes!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        if (currentPath == rutaPictures) { LoadFilesAndDirectories(currentPath); }
+                    }
+                };
+
+                frmCamara.FormClosing += (s, ev) => { SendMessage(hWndC, WM_CAP_DRIVER_DISCONNECT, 0, 0); };
+                frmCamara.ShowDialog();
+            }
+            else { MessageBox.Show("No se detectó ninguna cámara web conectada o está siendo usada por otro programa.", "Error de Cámara", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        }
+
+        // Resto de eventos
         private void btnOptions_Click(object sender, EventArgs e) { panelProperties.Visible = !panelProperties.Visible; }
         private void btnEdit_Click(object sender, EventArgs e) { if (listView1.SelectedItems.Count > 0) listView1.SelectedItems[0].BeginEdit(); }
         private void toolStripTextBox1_Click(object sender, EventArgs e) { }
         private void pictureBox2_Click(object sender, EventArgs e) { }
         private void webMapa_Click(object sender, EventArgs e) { }
-        private void btnViewCSV_Click(object sender, EventArgs e) { /* Usa la base que ya tenías */ }
+        private void btnViewCSV_Click(object sender, EventArgs e) { }
+        private void lblCoordenadas_Click(object sender, EventArgs e) { }
+        private void toolStripSplitButton1_ButtonClick(object sender, EventArgs e) { AbrirCamaraWeb(); }
     }
-
-
-   
- }
-
-    
-
-
-
+}

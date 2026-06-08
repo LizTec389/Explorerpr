@@ -48,13 +48,17 @@
             cmbPath = new ToolStripComboBox();
             txtSearch = new ToolStripTextBox();
             toolStripLabel1 = new ToolStripLabel();
+            toolStripSeparator5 = new ToolStripSeparator();
             newFolder = new ToolStripDropDownButton();
             newFileToolStripMenuItem = new ToolStripMenuItem();
             newToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator4 = new ToolStripSeparator();
             toolStripButton6 = new ToolStripButton();
+            toolStripSeparator3 = new ToolStripSeparator();
             toolStripButton7 = new ToolStripButton();
             toolStripSeparator1 = new ToolStripSeparator();
             toolStripButton8 = new ToolStripButton();
+            toolStripSeparator2 = new ToolStripSeparator();
             toolStripButton9 = new ToolStripButton();
             imageList1 = new ImageList(components);
             treeView1 = new TreeView();
@@ -63,7 +67,6 @@
             btnPrevTrack = new Button();
             btnNextTrack = new Button();
             lblTime = new Label();
-            lblMediaArtist = new Label();
             trackBarVolume = new TrackBar();
             btnMediaDetails = new Button();
             button3 = new Button();
@@ -95,12 +98,11 @@
             chDate = new ColumnHeader();
             chStatus = new ColumnHeader();
             statusStrip1 = new StatusStrip();
-            btnViewCSV = new ToolStripDropDownButton();
             lblSelectionInfo = new ToolStripStatusLabel();
+            toolStripSplitButton1 = new ToolStripSplitButton();
             BtnGrabarAudio = new ToolStripDropDownButton();
             btnDescargarDB = new ToolStripDropDownButton();
             btnEnviarCorreo = new ToolStripDropDownButton();
-            toolStripStatusLabel1 = new ToolStripStatusLabel();
             timerMusic = new System.Windows.Forms.Timer(components);
             toolStrip1.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
@@ -118,7 +120,7 @@
             // toolStrip1
             // 
             toolStrip1.GripStyle = ToolStripGripStyle.Hidden;
-            toolStrip1.Items.AddRange(new ToolStripItem[] { toolStripButton1, toolStripButton2, toolStripButton3, toolStripButton4, toolStripButton5, cmbPath, txtSearch, toolStripLabel1, newFolder, toolStripButton6, toolStripButton7, toolStripSeparator1, toolStripButton8, toolStripButton9 });
+            toolStrip1.Items.AddRange(new ToolStripItem[] { toolStripButton1, toolStripButton2, toolStripButton3, toolStripButton4, toolStripButton5, cmbPath, txtSearch, toolStripLabel1, toolStripSeparator5, newFolder, toolStripSeparator4, toolStripButton6, toolStripSeparator3, toolStripButton7, toolStripSeparator1, toolStripButton8, toolStripSeparator2, toolStripButton9 });
             toolStrip1.Location = new Point(0, 0);
             toolStrip1.Name = "toolStrip1";
             toolStrip1.RenderMode = ToolStripRenderMode.System;
@@ -191,6 +193,11 @@
             toolStripLabel1.Size = new Size(0, 22);
             toolStripLabel1.Text = "toolStripLabel1";
             // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new Size(6, 25);
+            // 
             // newFolder
             // 
             newFolder.DropDownItems.AddRange(new ToolStripItem[] { newFileToolStripMenuItem, newToolStripMenuItem });
@@ -216,6 +223,11 @@
             newToolStripMenuItem.Size = new Size(134, 22);
             newToolStripMenuItem.Text = "New Folder";
             // 
+            // toolStripSeparator4
+            // 
+            toolStripSeparator4.Name = "toolStripSeparator4";
+            toolStripSeparator4.Size = new Size(6, 25);
+            // 
             // toolStripButton6
             // 
             toolStripButton6.Image = Properties.Resources.edit;
@@ -224,6 +236,11 @@
             toolStripButton6.Size = new Size(47, 22);
             toolStripButton6.Text = "Edit";
             toolStripButton6.Click += btnEdit_Click;
+            // 
+            // toolStripSeparator3
+            // 
+            toolStripSeparator3.Name = "toolStripSeparator3";
+            toolStripSeparator3.Size = new Size(6, 25);
             // 
             // toolStripButton7
             // 
@@ -247,6 +264,11 @@
             toolStripButton8.Size = new Size(69, 22);
             toolStripButton8.Text = "Options";
             toolStripButton8.Click += btnOptions_Click;
+            // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(6, 25);
             // 
             // toolStripButton9
             // 
@@ -335,7 +357,6 @@
             groupBox1.Controls.Add(btnPrevTrack);
             groupBox1.Controls.Add(btnNextTrack);
             groupBox1.Controls.Add(lblTime);
-            groupBox1.Controls.Add(lblMediaArtist);
             groupBox1.Controls.Add(trackBarVolume);
             groupBox1.Controls.Add(btnMediaDetails);
             groupBox1.Controls.Add(button3);
@@ -385,15 +406,6 @@
             lblTime.Size = new Size(17, 15);
             lblTime.TabIndex = 10;
             lblTime.Text = "--";
-            // 
-            // lblMediaArtist
-            // 
-            lblMediaArtist.AutoSize = true;
-            lblMediaArtist.Location = new Point(96, 69);
-            lblMediaArtist.Name = "lblMediaArtist";
-            lblMediaArtist.Size = new Size(39, 15);
-            lblMediaArtist.TabIndex = 9;
-            lblMediaArtist.Text = "label2";
             // 
             // trackBarVolume
             // 
@@ -465,7 +477,7 @@
             // 
             lblMediaTitle.AutoSize = true;
             lblMediaTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lblMediaTitle.Location = new Point(94, 43);
+            lblMediaTitle.Location = new Point(94, 57);
             lblMediaTitle.Name = "lblMediaTitle";
             lblMediaTitle.Size = new Size(40, 15);
             lblMediaTitle.TabIndex = 2;
@@ -524,7 +536,7 @@
             // lblDate
             // 
             lblDate.AutoSize = true;
-            lblDate.Location = new Point(7, 48);
+            lblDate.Location = new Point(6, 30);
             lblDate.Name = "lblDate";
             lblDate.Size = new Size(36, 15);
             lblDate.TabIndex = 10;
@@ -533,16 +545,17 @@
             // lblCoordenadas
             // 
             lblCoordenadas.AutoSize = true;
-            lblCoordenadas.Location = new Point(96, 85);
+            lblCoordenadas.Location = new Point(97, 54);
             lblCoordenadas.Name = "lblCoordenadas";
             lblCoordenadas.Size = new Size(13, 15);
             lblCoordenadas.TabIndex = 9;
             lblCoordenadas.Text = "..";
+            lblCoordenadas.Click += lblCoordenadas_Click;
             // 
             // lblModifiedValue
             // 
             lblModifiedValue.AutoSize = true;
-            lblModifiedValue.Location = new Point(67, 48);
+            lblModifiedValue.Location = new Point(60, 30);
             lblModifiedValue.Name = "lblModifiedValue";
             lblModifiedValue.Size = new Size(13, 15);
             lblModifiedValue.TabIndex = 7;
@@ -563,9 +576,9 @@
             webMapa.AllowExternalDrop = true;
             webMapa.CreationProperties = null;
             webMapa.DefaultBackgroundColor = Color.White;
-            webMapa.Location = new Point(86, 103);
+            webMapa.Location = new Point(6, 87);
             webMapa.Name = "webMapa";
-            webMapa.Size = new Size(108, 85);
+            webMapa.Size = new Size(187, 95);
             webMapa.TabIndex = 5;
             webMapa.ZoomFactor = 1D;
             webMapa.Click += webMapa_Click;
@@ -573,7 +586,7 @@
             // label8
             // 
             label8.AutoSize = true;
-            label8.Location = new Point(0, 135);
+            label8.Location = new Point(0, 69);
             label8.Name = "label8";
             label8.Size = new Size(82, 15);
             label8.TabIndex = 4;
@@ -583,7 +596,7 @@
             // 
             label7.AutoSize = true;
             label7.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label7.Location = new Point(7, 30);
+            label7.Location = new Point(97, 0);
             label7.Name = "label7";
             label7.Size = new Size(89, 15);
             label7.TabIndex = 3;
@@ -592,7 +605,7 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(1, 85);
+            label1.Location = new Point(0, 54);
             label1.Name = "label1";
             label1.Size = new Size(83, 15);
             label1.TabIndex = 2;
@@ -686,22 +699,12 @@
             // 
             // statusStrip1
             // 
-            statusStrip1.Items.AddRange(new ToolStripItem[] { btnViewCSV, lblSelectionInfo, BtnGrabarAudio, btnDescargarDB, btnEnviarCorreo, toolStripStatusLabel1 });
+            statusStrip1.Items.AddRange(new ToolStripItem[] { lblSelectionInfo, toolStripSplitButton1, BtnGrabarAudio, btnDescargarDB, btnEnviarCorreo });
             statusStrip1.Location = new Point(0, 428);
             statusStrip1.Name = "statusStrip1";
             statusStrip1.Size = new Size(600, 22);
             statusStrip1.TabIndex = 4;
             statusStrip1.Text = "statusStrip1";
-            // 
-            // btnViewCSV
-            // 
-            btnViewCSV.DisplayStyle = ToolStripItemDisplayStyle.Text;
-            btnViewCSV.Image = (Image)resources.GetObject("btnViewCSV.Image");
-            btnViewCSV.ImageTransparentColor = Color.Magenta;
-            btnViewCSV.Name = "btnViewCSV";
-            btnViewCSV.Size = new Size(69, 20);
-            btnViewCSV.Text = "View CSV";
-            btnViewCSV.Click += btnViewCSV_Click;
             // 
             // lblSelectionInfo
             // 
@@ -709,9 +712,19 @@
             lblSelectionInfo.Size = new Size(32, 17);
             lblSelectionInfo.Text = "-----";
             // 
+            // toolStripSplitButton1
+            // 
+            toolStripSplitButton1.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            toolStripSplitButton1.Image = (Image)resources.GetObject("toolStripSplitButton1.Image");
+            toolStripSplitButton1.ImageTransparentColor = Color.Magenta;
+            toolStripSplitButton1.Name = "toolStripSplitButton1";
+            toolStripSplitButton1.Size = new Size(32, 20);
+            toolStripSplitButton1.Text = "toolStripSplitButton1";
+            toolStripSplitButton1.ButtonClick += toolStripSplitButton1_ButtonClick;
+            // 
             // BtnGrabarAudio
             // 
-            BtnGrabarAudio.Image = Properties.Resources.play_button;
+            BtnGrabarAudio.Image = (Image)resources.GetObject("BtnGrabarAudio.Image");
             BtnGrabarAudio.Name = "BtnGrabarAudio";
             BtnGrabarAudio.Size = new Size(29, 20);
             BtnGrabarAudio.Click += btnGrabarAudio_Click;
@@ -731,12 +744,6 @@
             btnEnviarCorreo.Name = "btnEnviarCorreo";
             btnEnviarCorreo.Size = new Size(29, 20);
             btnEnviarCorreo.Click += btnEnviarCorreo_Click;
-            // 
-            // toolStripStatusLabel1
-            // 
-            toolStripStatusLabel1.Name = "toolStripStatusLabel1";
-            toolStripStatusLabel1.Size = new Size(118, 17);
-            toolStripStatusLabel1.Text = "toolStripStatusLabel1";
             // 
             // timerMusic
             // 
@@ -829,8 +836,6 @@
         private ColumnHeader chDate;
         private ColumnHeader chStatus;
         private StatusStrip statusStrip1;
-        private ToolStripDropDownButton btnViewCSV;
-        private Label lblMediaArtist;
         private Label lblTime;
         private System.Windows.Forms.Timer timerMusic;
         private Label lblModifiedValue;
@@ -841,6 +846,10 @@
         private Button btnNextTrack;
         private ToolStripDropDownButton btnDescargarDB;
         private ToolStripDropDownButton btnEnviarCorreo;
-        private ToolStripStatusLabel toolStripStatusLabel1;
+        private ToolStripSeparator toolStripSeparator5;
+        private ToolStripSeparator toolStripSeparator4;
+        private ToolStripSeparator toolStripSeparator3;
+        private ToolStripSeparator toolStripSeparator2;
+        private ToolStripSplitButton toolStripSplitButton1;
     }
 }

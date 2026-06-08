@@ -14,6 +14,7 @@ namespace Explorerpr.Forms
 
     public partial class FrmImageEditor : Form
     {
+      
         // ==========================================
         private string rutaImagenActual;
         private Image imagenEnMemoria;
@@ -55,6 +56,7 @@ namespace Explorerpr.Forms
         private void FrmImageEditor_Load(object sender, EventArgs e)
         {
             CargarImagenEnEditor(rutaImagenActual);
+            ExtraerMetadatosDeCamara();
         }
         private void CambiarColor()
         {
@@ -647,6 +649,120 @@ namespace Explorerpr.Forms
                 e.Graphics.DrawString(textoFlotante, new Font("Arial", 40, FontStyle.Bold), new SolidBrush(colorActual), posicionPantalla);
             }
         }
+
+        private void ExtraerMetadatosDeCamara()
+        {
+            lvMetadatosGeneral.Items.Clear();
+            lvMetadatosGeneral.View = View.Details;
+
+            // Si no tienes columnas creadas en el diseñador, las creamos por código:
+            if (lvMetadatosGeneral.Columns.Count == 0)
+            {
+                lvMetadatosGeneral.Columns.Add("Propiedad", 180);
+                lvMetadatosGeneral.Columns.Add("Valor", 200);
+            }
+
+            System.IO.FileInfo fi = new System.IO.FileInfo(rutaImagenActual);
+
+            // 1. Información básica del archivo
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Nombre", fi.Name }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Extensión", fi.Extension.ToUpper() }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Dimensiones", $"{imagenEnMemoria.Width} x {imagenEnMemoria.Height} píxeles" }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Ancho", $"{imagenEnMemoria.Width} píxeles" }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Alto", $"{imagenEnMemoria.Height} píxeles" }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Resolución horizontal", $"{imagenEnMemoria.HorizontalResolution} ppp" }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Resolución vertical", $"{imagenEnMemoria.VerticalResolution} ppp" }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Profundidad en bits", $"{Image.GetPixelFormatSize(imagenEnMemoria.PixelFormat)}" }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Peso", $"{fi.Length / 1024.0:F2} KB" }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Fecha de Creación", fi.CreationTime.ToString("dd/MM/yyyy HH:mm") }));
+            lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { "Representación del color", imagenEnMemoria.PixelFormat.ToString() }));
+
+            // 2. Datos EXIF de la cámara (los que salen en "Detalles" de Windows)
+            try
+            {
+                foreach (System.Drawing.Imaging.PropertyItem prop in imagenEnMemoria.PropertyItems)
+                {
+                    string nombrePropiedad = "";
+                    string valor = "";
+
+                    switch (prop.Id)
+                    {
+                        case 0x010F:
+                            nombrePropiedad = "Fabricante de cámara";
+                            valor = System.Text.Encoding.ASCII.GetString(prop.Value).Trim('\0');
+                            break;
+                        case 0x0110:
+                            nombrePropiedad = "Modelo de cámara";
+                            valor = System.Text.Encoding.ASCII.GetString(prop.Value).Trim('\0');
+                            break;
+                        case 0x8827:
+                            nombrePropiedad = "Velocidad ISO";
+                            valor = "ISO-" + BitConverter.ToUInt16(prop.Value, 0).ToString();
+                            break;
+                        case 0x829D:
+                            nombrePropiedad = "Punto F";
+                            uint numF = BitConverter.ToUInt32(prop.Value, 0);
+                            uint denF = BitConverter.ToUInt32(prop.Value, 4);
+                            if (denF != 0) valor = $"f/{(double)numF / denF:F1}";
+                            break;
+                        case 0x829A:
+                            nombrePropiedad = "Tiempo de exposición";
+                            uint numE = BitConverter.ToUInt32(prop.Value, 0);
+                            uint denE = BitConverter.ToUInt32(prop.Value, 4);
+                            valor = $"{numE}/{denE} s";
+                            break;
+                        case 0x920A:
+                            nombrePropiedad = "Distancia focal";
+                            uint numDF = BitConverter.ToUInt32(prop.Value, 0);
+                            uint denDF = BitConverter.ToUInt32(prop.Value, 4);
+                            if (denDF != 0) valor = $"{(double)numDF / denDF:F0} mm";
+                            break;
+                        case 0x9209:
+                            nombrePropiedad = "Flash";
+                            ushort flashVal = BitConverter.ToUInt16(prop.Value, 0);
+                            valor = (flashVal == 0) ? "No se usó" : "Se usó flash";
+                            break;
+                        case 0x0132:
+                            nombrePropiedad = "Fecha de captura";
+                            valor = System.Text.Encoding.ASCII.GetString(prop.Value).Trim('\0');
+                            break;
+                        case 0x9003:
+                            nombrePropiedad = "Fecha original de toma";
+                            valor = System.Text.Encoding.ASCII.GetString(prop.Value).Trim('\0');
+                            break;
+                        case 0x0131:
+                            nombrePropiedad = "Software";
+                            valor = System.Text.Encoding.ASCII.GetString(prop.Value).Trim('\0');
+                            break;
+                        case 0xA002:
+                            nombrePropiedad = "Ancho EXIF";
+                            valor = BitConverter.ToUInt32(prop.Value, 0).ToString() + " píxeles";
+                            break;
+                        case 0xA003:
+                            nombrePropiedad = "Alto EXIF";
+                            valor = BitConverter.ToUInt32(prop.Value, 0).ToString() + " píxeles";
+                            break;
+                        case 0x9204:
+                            nombrePropiedad = "Compensación de exposición";
+                            int numCE = BitConverter.ToInt32(prop.Value, 0);
+                            int denCE = BitConverter.ToInt32(prop.Value, 4);
+                            if (denCE != 0) valor = $"{(double)numCE / denCE:F1} paso";
+                            break;
+                        case 0xA405:
+                            nombrePropiedad = "Distancia focal equiv. 35mm";
+                            valor = BitConverter.ToUInt16(prop.Value, 0).ToString() + " mm";
+                            break;
+                    }
+
+                    if (!string.IsNullOrEmpty(nombrePropiedad) && !string.IsNullOrEmpty(valor))
+                    {
+                        lvMetadatosGeneral.Items.Add(new ListViewItem(new[] { nombrePropiedad, valor }));
+                    }
+                }
+            }
+            catch { }
+        }
+
     }
 }
 
